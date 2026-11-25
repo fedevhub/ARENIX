@@ -1,5 +1,5 @@
 const express = require('express');
-const router = express.router();
+const router = express.Router();
 
 const {
     getTarif,
@@ -10,12 +10,15 @@ const {
 } = require('../controllers/tarifControllers');
 
 const authMiddleware = require('../middleware/authMiddleware');
+const { authorizeRole } = require("../middleware/authMiddleware");
 
 router.use(authMiddleware);
+
 router.get('/', getTarif);
 router.get('/:id', getTarifById);
-router.post('/', createTarif);
-router.put('/:id', updateTarif);
-router.delete('/:id', deleteTarif);
+
+router.post("/", authorizeRole("admin"), createTarif);
+router.put("/:id", authorizeRole("admin"), updateTarif);
+router.delete("/:id", authorizeRole("admin"), deleteTarif);
 
 module.exports = router;

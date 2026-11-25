@@ -10,12 +10,15 @@ const {
 } = require('../controllers/lapanganControllers');
 
 const authMiddleware = require('../middleware/authMiddleware');
+const { authorizeRole } = require("../middleware/authMiddleware");
 
 router.use(authMiddleware);
+
 router.get('/', getLapangan);
 router.get('/:id', getLapanganById);
-router.post('/', createLapangan);
-router.put("/:id", updateLapangan);
-router.delete('/:id', deleteLapangan);
+
+router.post("/", authorizeRole("admin"), createLapangan);
+router.put("/:id", authorizeRole("admin"), updateLapangan);
+router.delete("/:id", authorizeRole("admin"), deleteLapangan);
 
 module.exports = router;
