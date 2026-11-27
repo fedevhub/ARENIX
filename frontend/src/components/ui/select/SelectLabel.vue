@@ -1,10 +1,17 @@
-<script setup lang="ts">
-import type { SelectLabelProps } from "reka-ui"
-import type { HTMLAttributes } from "vue"
-import { cn } from "cn"
-import { SelectLabel } from "reka-ui"
+<script setup>
+import { cn } from "cn";
+import { SelectLabel } from "reka-ui";
 
-const props = defineProps<SelectLabelProps & { class?: HTMLAttributes["class"] }>()
+const props = defineProps({
+  for: { type: String, required: false },
+  asChild: { type: Boolean, required: false },
+  as: { type: null, required: false },
+  class: {
+    type: [Boolean, null, String, Object, Array],
+    required: false,
+    skipCheck: true,
+  },
+});
 </script>
 
 <template>

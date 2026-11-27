@@ -1,10 +1,10 @@
 <script setup>
-    import AdminSidebar from '@/components/layout/AdminSidebar.vue'
+    import adminSidebar from '@/components/layout/AdminSidebar.vue'
 </script>
 
 <template>
     <div class="h-screen overflow-hidden">
-        <AdminSidebar />
+        <adminSidebar />
 
         <main
             class="ml-58 h-screen overflow-y-auto bg-[#f5f5f5]"

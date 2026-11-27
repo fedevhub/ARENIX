@@ -1,247 +1,320 @@
-const Lapangan = require('../models/lapanganModels');
-const Tarif = require('../models/tarifModels');
+const mongoose = require('mongoose')
+const Lapangan = require('../models/lapanganModels')
+const Tarif = require('../models/tarifModels')
 
 const getTarif = async (req, res) => {
     try {
         const data = await Tarif.find()
             .populate('lapangan_id', 'nama')
-            .sort({ createdAt: -1 });
-        
-        res.status(200).json({
-            success: true,
-            data
-        });
+            .sort({ createdAt: -1 })
 
+        return res.status(200).json({
+            success: true,
+            data,
+        })
     } catch (error) {
-        res.status(500).json({
+        console.error('Get tarif error:', error)
+
+        return res.status(500).json({
             success: false,
-            message: error.message
-        });
+            message: error.message,
+        })
     }
-};
+}
 
 const getTarifById = async (req, res) => {
     try {
-        const data = await Tarif.findById(req.params.id)
-            .populate('lapangan_id', 'nama');
+        const { id } = req.params
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'ID tarif tidak valid',
+            })
+        }
+
+        const data = await Tarif.findById(id)
+            .populate('lapangan_id', 'nama')
 
         if (!data) {
             return res.status(404).json({
                 success: false,
-                message: 'Tarif tidak ditemukan'
-            });
+                message: 'Tarif tidak ditemukan',
+            })
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
-            data
-        });
+            data,
+        })
     } catch (error) {
-        res.status(400).json({
+        return res.status(500).json({
             success: false,
-            message: 'ID tarif tidak valid'
-        });
+            message: error.message,
+        })
     }
-};
+}
 
 const createTarif = async (req, res) => {
     try {
-        const { 
+        const {
             lapangan_id,
             tipe_hari,
             pakai_lampu,
-            harga_per_jam
-        } = req.body;
+            harga_per_jam,
+        } = req.body
 
-        if (!lapangan_id || !tipe_hari || typeof pakai_lampu !== 'boolean' || !harga_per_jam === undefined) {
+        if (
+            !lapangan_id ||
+            !tipe_hari ||
+            pakai_lampu === undefined ||
+            pakai_lampu === null ||
+            harga_per_jam === undefined ||
+            harga_per_jam === null ||
+            harga_per_jam === ''
+        ) {
             return res.status(400).json({
                 success: false,
-                message: 'Data tarif belum lengkap'
-            });
+                message: 'Data tarif belum lengkap',
+            })
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(lapangan_id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'ID lapangan tidak valid',
+            })
         }
 
         if (!['Weekday', 'Weekend'].includes(tipe_hari)) {
             return res.status(400).json({
                 success: false,
-                message: 'Tipe hari tidak valid'
-            });
+                message: 'Tipe hari tidak valid',
+            })
         }
 
-        if (!Number.isFinite(Number(harga_per_jam)) || Number(harga_per_jam) < 0) {
+        if (
+            typeof pakai_lampu !== 'boolean' ||
+            !Number.isFinite(Number(harga_per_jam)) ||
+            Number(harga_per_jam) <= 0
+        ) {
             return res.status(400).json({
                 success: false,
-                message: 'Harga per jam tidak valid'
-            });
+                message: 'Data lampu atau harga tidak valid',
+            })
         }
 
-        const lapangan = await Lapangan.findById(lapangan_id);
+        const lapangan = await Lapangan.findById(lapangan_id)
 
         if (!lapangan) {
             return res.status(404).json({
                 success: false,
-                message: 'Lapangan tidak ditemukan'
-            });
+                message: 'Lapangan tidak ditemukan',
+            })
         }
 
         const existing = await Tarif.findOne({
             lapangan_id,
             tipe_hari,
-            pakai_lampu
-        });
+            pakai_lampu,
+        })
 
         if (existing) {
-            return res.status(409)({
+            return res.status(409).json({
                 success: false,
-                message: 'Tarif kombinasi tersebut sudah tersedia'
-            });
+                message: 'Tarif kombinasi tersebut sudah tersedia',
+            })
         }
 
         const data = await Tarif.create({
             lapangan_id,
             tipe_hari,
             pakai_lampu,
-            harga_per_jam: Number(harga_per_jam)
-        });
+            harga_per_jam: Number(harga_per_jam),
+        })
 
-        res.status(201).json({
+        const hasil = await Tarif.findById(data._id)
+            .populate('lapangan_id', 'nama')
+
+        return res.status(201).json({
             success: true,
             message: 'Tarif berhasil ditambahkan',
-            data
-        });
-
+            data: hasil,
+        })
     } catch (error) {
+        console.error('Create tarif error:', error)
+
         if (error.code === 11000) {
             return res.status(409).json({
                 success: false,
-                message: 'Tarif tersebut sudah tersedia'
-            });
+                message: 'Tarif tersebut sudah tersedia',
+            })
         }
 
-        res.status(400).json({
+        return res.status(500).json({
             success: false,
-            message: error.message
-        });
+            message: error.message,
+        })
     }
-};
+}
 
 const updateTarif = async (req, res) => {
     try {
-        const { 
+        const { id } = req.params
+
+        const {
             lapangan_id,
             tipe_hari,
             pakai_lampu,
-            harga_per_jam
-        } = req.body;
+            harga_per_jam,
+        } = req.body
 
-        const tarif = await Tarif.findById(req.params.id);
+        console.log('ID tarif yang diedit:', id)
+        console.log('Data update tarif:', req.body)
 
-        if (tarif) {
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'ID tarif tidak valid',
+            })
+        }
+
+        if (
+            !lapangan_id ||
+            !tipe_hari ||
+            pakai_lampu === undefined ||
+            pakai_lampu === null ||
+            harga_per_jam === undefined ||
+            harga_per_jam === null ||
+            harga_per_jam === ''
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: 'Data tarif belum lengkap',
+            })
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(lapangan_id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'ID lapangan tidak valid',
+            })
+        }
+
+        if (!['Weekday', 'Weekend'].includes(tipe_hari)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Tipe hari tidak valid',
+            })
+        }
+
+        if (
+            typeof pakai_lampu !== 'boolean' ||
+            !Number.isFinite(Number(harga_per_jam)) ||
+            Number(harga_per_jam) <= 0
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: 'Data lampu atau harga tidak valid',
+            })
+        }
+
+        const tarif = await Tarif.findById(id)
+
+        if (!tarif) {
             return res.status(404).json({
                 success: false,
-                message: 'Tarif tidak ditemukan'
-            });
+                message: 'Data tarif tidak ditemukan',
+            })
         }
 
-        const newLapanganId = lapangan_id || tarif.lapangan_id;
-        const newTipeHari = tipe_hari || tarif.tipe_hari;
-        const newLampu = pakai_lampu === undefined
-            ? tarif.pakai_lampu
-            : pakai_lampu;
+        const lapangan = await Lapangan.findById(lapangan_id)
 
-        if (!['Weekday', 'Weekend'].includes(newTipeHari)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Tipe hari tidak valid'
-            });
-        }
-
-        if (typeof newLampu !== 'boolean') {
-            return res.status(400).json({
-                success: false,
-                message: 'Pilihan lampu tidak valid'
-            });
-        }
-
-        if (lapangan_id && !(await Lapangan.exists({ _id: lapangan_id }))) {
+        if (!lapangan) {
             return res.status(404).json({
                 success: false,
-                message: 'Lapangan tidak ditemukan'
-            });
+                message: 'Lapangan tidak ditemukan',
+            })
         }
 
-        if (harga_per_jam !== undefined &&
-            (!Number.isFinite(Number(harga_per_jam)) || Number(harga_per_jam) < 0)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Harga tidak valid'
-            });
-        }
+        // Cek kombinasi tarif lain, kecuali data yang sedang diedit
+        const existing = await Tarif.findOne({
+            _id: { $ne: id },
+            lapangan_id,
+            tipe_hari,
+            pakai_lampu,
+        })
 
-        const duplicate = await Tarif.findOne({
-            _id: { $ne: tarif._id },
-            lapangan_id: newLapanganId,
-            tipe_hari: newTipeHari,
-            pakai_lampu: newLampu
-        });
-
-        if (duplicate) {
+        if (existing) {
             return res.status(409).json({
                 success: false,
-                message: 'Kombinasi tarif sudah digunakan'
-            });
+                message: 'Kombinasi tarif tersebut sudah digunakan',
+            })
         }
 
-        tarif.lapangan_id = newLapanganId;
-        tarif.tipe_hari = newTipeHari;
-        tarif.pakai_lampu = newLampu;
+        tarif.lapangan_id = lapangan_id
+        tarif.tipe_hari = tipe_hari
+        tarif.pakai_lampu = pakai_lampu
+        tarif.harga_per_jam = Number(harga_per_jam)
 
-        if (harga_per_jam !== undefined) {
-            tarif.harga_per_jam = Number(harga_per_jam);
-        }
+        await tarif.save()
 
-        await tarif.save();
+        const hasil = await Tarif.findById(id)
+            .populate('lapangan_id', 'nama')
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Tarif berhasil diperbarui',
-            data: tarif
-        });
-
+            data: hasil,
+        })
     } catch (error) {
-        res.status(400).json({
+        console.error('Update tarif error:', error)
+
+        return res.status(500).json({
             success: false,
-            message: error.message
-        });
+            message: error.message,
+        })
     }
-};
+}
 
 const deleteTarif = async (req, res) => {
     try {
-        const data = await Tarif.findByIdAndDelete(req.params.id);
+        const { id } = req.params
 
-        if (data) {
+        if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({
                 success: false,
-                message: 'Tarif tidak ditemukan'
-            });
+                message: 'ID tarif tidak valid',
+            })
         }
-        
-        res.status(200).json({
+
+        const data = await Tarif.findByIdAndDelete(id)
+
+        if (!data) {
+            return res.status(404).json({
+                success: false,
+                message: 'Tarif tidak ditemukan',
+            })
+        }
+
+        return res.status(200).json({
             success: true,
-            message: 'Tarif berhasil dihapus'
-        });
+            message: 'Tarif berhasil dihapus',
+        })
     } catch (error) {
-        return res.status(400).json({
+        console.error('Delete tarif error:', error)
+
+        return res.status(500).json({
             success: false,
-            message: error.message
-        });
+            message: error.message,
+        })
     }
-};
+}
 
 module.exports = {
     getTarif,
     getTarifById,
     createTarif,
     updateTarif,
-    deleteTarif
-};
+    deleteTarif,
+}

@@ -2,6 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
+const path = require('path');
 
 const connectDB = require('./config/connectDb');
 
@@ -19,6 +20,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// STATIC FILES - HARUS SEBELUM ROUTE 404
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Halaman utama
 app.get('/', (req, res) => {
     res.status(200).json({
         success: true,
@@ -26,6 +31,7 @@ app.get('/', (req, res) => {
     });
 });
 
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/jenis', jenisRoutes);
@@ -33,6 +39,7 @@ app.use('/api/lapangan', lapanganRoutes);
 app.use('/api/tarif', tarifRoutes);
 app.use('/api/booking', bookingRoutes);
 
+// Error 404
 app.use((req, res) => {
     res.status(404).json({
         success: false,
@@ -40,6 +47,7 @@ app.use((req, res) => {
     });
 });
 
+// Error handler
 app.use((err, req, res, next) => {
     console.error(err);
 

@@ -3,7 +3,9 @@ const bcrypt = require('bcryptjs');
 
 const getUsers = async (req, res) => {
     try {
-        const users = (await User.find().select('-password')).short({ createdAt: -1 });
+        const users = await User.find()
+        .select('-password')
+        .sort({ createdAt: -1 });
 
         res.status(200).json({
             success: true,

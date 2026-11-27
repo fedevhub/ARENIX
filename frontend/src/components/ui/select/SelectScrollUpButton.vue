@@ -1,23 +1,31 @@
-<script setup lang="ts">
-import type { SelectScrollUpButtonProps } from "reka-ui"
-import type { HTMLAttributes } from "vue"
-import { PhCaretUp } from '@phosphor-icons/vue'
-import { reactiveOmit } from "@vueuse/core"
-import { cn } from "cn"
-import { SelectScrollUpButton, useForwardProps } from "reka-ui"
+<script setup>
+import { PhCaretUp } from '@phosphor-icons/vue';
+import { reactiveOmit } from "@vueuse/core";
+import { cn } from "cn";
+import { SelectScrollUpButton, useForwardProps } from "reka-ui";
 
-const props = defineProps<SelectScrollUpButtonProps & { class?: HTMLAttributes["class"] }>()
+const props = defineProps({
+  asChild: { type: Boolean, required: false },
+  as: { type: null, required: false },
+  class: {
+    type: [Boolean, null, String, Object, Array],
+    required: false,
+    skipCheck: true,
+  },
+});
 
-const delegatedProps = reactiveOmit(props, "class")
+const delegatedProps = reactiveOmit(props, "class");
 
-const forwardedProps = useForwardProps(delegatedProps)
+const forwardedProps = useForwardProps(delegatedProps);
 </script>
 
 <template>
   <SelectScrollUpButton
     data-slot="select-scroll-up-button"
     v-bind="forwardedProps"
-    :class="cn('flex cursor-default items-center justify-center py-1', props.class)"
+    :class="
+      cn('flex cursor-default items-center justify-center py-1', props.class)
+    "
   >
     <slot>
       <PhCaretUp class="size-4" />

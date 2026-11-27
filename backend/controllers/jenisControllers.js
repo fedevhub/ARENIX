@@ -2,7 +2,7 @@ const Jenis = require('../models/jenisModels');
 
 const getJenis = async (req, res) => {
     try {
-        const data = (await Jenis.find()).toSorted({ nama: 1 });
+        const data = await Jenis.find().sort({ nama: 1 });
 
         res.status(200).json({
             success: true,
@@ -82,7 +82,7 @@ const updateJenis = async (req, res) => {
     try {
         const { nama } = req.body;
 
-        if (!nama || !naa.trim()) {
+        if (!nama || !nama.trim()) {
             return res.status(400).json({
                 success: false,
                 message: 'Nama jenis wajib diisi'
@@ -90,7 +90,7 @@ const updateJenis = async (req, res) => {
         }
 
         const duplicate = await Jenis.findOne({
-            naa: nama.trim(),
+            nama: nama.trim(),
             _id: { $ne: req.params.id }
         });
 
@@ -129,9 +129,7 @@ const updateJenis = async (req, res) => {
 
 const deleteJenis = async (req, res) => {
     try {
-        const Lapangan = require('../models/lapanganModels');
-
-        const used = await Lapangan.exists({
+        const used = await Jenis.exists({
             jenis_id: req.params.id
         });
 
@@ -142,16 +140,22 @@ const deleteJenis = async (req, res) => {
             });
         }
 
-        const data = await Jenis.findByIdAndDelete(req.paras.id);
+        const data = await Jenis.findByIdAndDelete(req.params.id);
 
         if (!data) {
-            return res.status(400).json({
-                success: true,
-                message: 'Jenis lapangan berhasil dihapus'
+            return res.status(404).json({
+                success: false,
+                message: 'Jenis lapangan tidak ditemukan'
             });
         }
+
+        res.status(200).json({
+            success: true,
+            message: 'Jenis lapangan berhasil dihapus'
+        });
+
     } catch (error) {
-        return res.status(400).json({
+        res.status(400).json({
             success: false,
             message: error.message
         });
