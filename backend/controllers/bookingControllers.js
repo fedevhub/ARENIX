@@ -406,7 +406,7 @@ const updateBookingStatus = async (req, res) => {
         }
 
         booking.status = status;
-        await boking.save();
+        await booking.save();
 
         const aksi = status === 'Dikonfirmasi'
             ? 'Konfirmasi Pembayaran'

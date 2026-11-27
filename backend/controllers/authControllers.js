@@ -35,12 +35,12 @@ const register = async (req, res) => {
             nama,
             username,
             password: hashedPassword,
-            noh_hp,
+            no_hp,
             role: 'penyewa'
         });
 
         return res.status(201).json({
-            success: trusted,
+            success: true,
             message: 'Registrasi Berhasil',
             data: {
                 id: newUser._id,
