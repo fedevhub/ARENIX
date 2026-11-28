@@ -1,12 +1,13 @@
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Eye, EyeOff } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import api from '@/lib/api'
 
 const router = useRouter()
+const route = useRoute()
 const username = ref('')
 const password = ref('')
 const showPassword = ref(false)
@@ -16,8 +17,15 @@ const loading = ref(false)
 const roleRoutes = {
     admin: '/admin/dashboard',
     petugas: '/petugas/dashboard',
-    penyewa: '/penyewa/dashboard',
+    penyewa: '/',
 }
+
+const redirect =
+    typeof route.query.redirect === 'string' &&
+        route.query.redirect.startsWith('/') &&
+        !route.query.redirect.startsWith('//')
+        ? route.query.redirect
+        : null
 
 async function handleLogin() {
     if (!username.value.trim() || !password.value) {
@@ -40,7 +48,8 @@ async function handleLogin() {
             return
         }
 
-        const destination = roleRoutes[user.role]
+        const destination =
+            user.role === 'penyewa' && redirect ? redirect : roleRoutes[user.role]
         if (!destination) {
             error.value = 'Login berhasil, tetapi halaman untuk role ini belum tersedia.'
             return

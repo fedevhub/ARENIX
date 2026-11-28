@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { AlertCircle, ChevronDown, Search } from 'lucide-vue-next'
+import { AlertCircle, ChevronDown, Search, X } from 'lucide-vue-next'
 import tableTarif from '@/components/admin/tarif/tableTarif.vue'
 import formTarif from '@/components/admin/tarif/formTarif.vue'
 import { Input } from '@/components/ui/input'
@@ -208,13 +208,13 @@ onMounted(() => {
 </script>
 
 <template>
-    <main class="min-h-full bg-[#F4F6F8] p-6 md:p-8" style="font-family: 'DM Sans', Arial, sans-serif">
+    <main class="min-h-full bg-[#F4F6F8] p-4 sm:p-6 md:p-8" style="font-family: 'DM Sans', Arial, sans-serif">
         <!-- Header -->
         <div>
             <h1 class="font-display text-3xl font-extrabold tracking-tight text-[#142744] md:text-4xl">
                 Kelola Tarif
             </h1>
-            <div class="mt-1 flex flex-row items-center justify-between">
+            <div class="mt-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <p class="text-base font-medium text-slate-600">Kelola dan pantau tarif lapangan Arenix</p>
                 <p class="text-base font-medium text-slate-600">{{ tanggal }}</p>
             </div>
@@ -222,11 +222,17 @@ onMounted(() => {
 
         <!-- Toolbar: cari + filter + tambah -->
         <div class="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4">
-            <div class="relative w-full sm:w-64">
-                <Search :size="15"
-                    class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <Input v-model="pencarian" type="text" placeholder="Cari data..."
-                    class="h-10 rounded-[10px] border-slate-200 bg-white pl-9 text-sm shadow-none placeholder:text-slate-400 focus-visible:border-[#142744] focus-visible:ring-0" />
+            <div class="relative w-full max-w-[280px]">
+                <Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+
+                <input v-model="pencarian" type="text" placeholder="Cari data..."
+                    class="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-9 text-xs outline-none transition focus:border-[#FF9638]" />
+
+                <button v-if="pencarian" type="button" @click="pencarian = ''; halamanSaatIni = 1"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500"
+                    title="Hapus pencarian">
+                    <X :size="15" />
+                </button>
             </div>
 
             <Button

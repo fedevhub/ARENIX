@@ -39,6 +39,127 @@ const getDateInfo = (value) => {
     };
 };
 
+const populateBooking = (query) =>
+    query
+        .populate('user_id', 'nama username no_hp')
+        .populate('dibuat_oleh', 'nama username')
+        .populate({
+            path: 'lapangan_id',
+            select: 'nama gambar jam_buka jam_tutup jam_mulai_lampu status jenis_id',
+            populate: { path: 'jenis_id', select: 'nama' }
+        });
+
+const hitungRincian = async (booking) => {
+    const lapanganId = booking.lapangan_id?._id ?? booking.lapangan_id;
+    const hari = new Date(booking.tanggal).getUTCDay();
+    const tipeHari = [0, 6].includes(hari) ? 'Weekend' : 'Weekday';
+
+    let hargaDasar = booking.durasi_jam > 0
+        ? booking.total_biaya / booking.durasi_jam
+        : 0;
+    let biayaLampu = 0;
+
+    if (booking.pakai_lampu) {
+        const tarifDasar = await Tarif.findOne({
+            lapangan_id: lapanganId,
+            tipe_hari: tipeHari,
+            pakai_lampu: false
+        });
+
+        hargaDasar = booking.harga_dasar_per_jam
+            ?? tarifDasar?.harga_per_jam
+            ?? (tipeHari === 'Weekend' ? 75000 : 55000);
+
+        // Booking baru menyimpan biaya lampu agar rincian tetap akurat
+        // walaupun tarif diubah kemudian. Booking lama tetap ditampilkan
+        // dengan perhitungan tarif sebelumnya.
+        biayaLampu = booking.biaya_lampu ?? Math.max(
+            0,
+            booking.total_biaya - (hargaDasar * booking.durasi_jam)
+        );
+    }
+
+    return {
+        tipe_hari: tipeHari,
+        harga_per_jam: hargaDasar,
+        harga_dasar_per_jam: hargaDasar,
+        tambahan_lampu_per_jam: biayaLampu,
+        jam_lampu: booking.pakai_lampu && biayaLampu > 0 ? 1 : 0
+    };
+};
+
+
+const getPendapatan = async (req, res) => {
+  try {
+    const data = await Booking.find({
+      status: { $in: ["Dikonfirmasi", "Selesai"] },
+    })
+      .populate("user_id", "nama username no_hp")
+      .populate("lapangan_id", "nama")
+      .sort({ tanggal: -1, created_at: -1 })
+      .lean();
+
+    const totalPendapatan = data.reduce(
+      (total, item) => total + Number(item.total_biaya || 0),
+      0,
+    );
+
+    return res.status(200).json({
+      success: true,
+      jumlah: data.length,
+      totalPendapatan,
+      data,
+    });
+  } catch (error) {
+    console.error("GAGAL MENGAMBIL PENDAPATAN:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// Mengambil ringkasan untuk empat kartu pendapatan
+const getPendapatanRingkasan = async (req, res) => {
+  try {
+    const [totalBooking, bookingSelesai, bookingDibatalkan, dataPendapatan] =
+      await Promise.all([
+        Booking.countDocuments(),
+        Booking.countDocuments({ status: "Selesai" }),
+        Booking.countDocuments({ status: "Dibatalkan" }),
+        Booking.find({
+          status: { $in: ["Dikonfirmasi", "Selesai"] },
+        })
+          .select("total_biaya")
+          .lean(),
+      ]);
+
+    const totalPendapatan = dataPendapatan.reduce(
+      (total, item) => total + Number(item.total_biaya || 0),
+      0,
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        total_pendapatan: totalPendapatan,
+        total_booking: totalBooking,
+        booking_selesai: bookingSelesai,
+        booking_dibatalkan: bookingDibatalkan,
+      },
+    });
+  } catch (error) {
+    console.error("GAGAL MENGAMBIL RINGKASAN PENDAPATAN:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
 const getBookings = async (req, res) => {
     try {
         const filter = {};
@@ -49,6 +170,10 @@ const getBookings = async (req, res) => {
 
         if (req.query.status) {
             filter.status = req.query.status;
+        }
+
+        if (req.query.lapangan_id) {
+            filter.lapangan_id = req.query.lapangan_id;
         }
 
         if (req.query.tanggal) {
@@ -64,11 +189,14 @@ const getBookings = async (req, res) => {
             filter.tanggal = info.date;
         }
 
-        const data = await Booking.find(filter)
-            .populate('user_id', 'nama username no_hp')
-            .populate('lapangan_id', 'nama')
-            .sort({ tanggal: -1, jam_mulai });
-        
+        const data = await populateBooking(
+            Booking.find(filter).sort({
+                tanggal: -1,
+                jam_mulai: 1,
+                created_at: -1
+            })
+        );
+
         res.status(200).json({
             success: true,
             jumlah: data.length,
@@ -84,11 +212,11 @@ const getBookings = async (req, res) => {
 
 const getBookingById = async (req, res) => {
     try {
-        const data = await Booking(req.params.id)
-            .populate('user_id', 'nama username no_hp')
-            .populate('lapangan_id', 'nama');
+        const booking = await populateBooking(
+            Booking.findById(req.params.id)
+        );
 
-        if (!data) {
+        if (!booking) {
             return res.status(404).json({
                 success: false,
                 message: 'Booking tidak ditemukan'
@@ -97,19 +225,28 @@ const getBookingById = async (req, res) => {
 
         if (
             req.user.role === 'penyewa' &&
-            String(data.user_id._id) !== String(req.user.id)
+            String(booking.user_id?._id) !== String(req.user.id)
         ) {
             return res.status(403).json({
                 success: false,
                 message: 'Kamu tidak dapat melihat booking pengguna lain'
             });
         }
-        
+
+        const riwayat = await AuditLog.find({ booking_id: booking._id })
+            .populate('user_id', 'nama role')
+            .sort({ waktu: 1 });
+
+        const rincian = await hitungRincian(booking);
+
         res.status(200).json({
             success: true,
-            data
+            data: {
+                ...booking.toObject(),
+                riwayat,
+                rincian
+            }
         });
-
     } catch (error) {
         res.status(400).json({
             success: false,
@@ -122,7 +259,7 @@ const getJadwal = async (req, res) => {
     try {
         const { lapangan_id, tanggal } = req.query;
 
-        if (!lapangan_id || !tanggal ) {
+        if (!lapangan_id || !tanggal) {
             return res.status(400).json({
                 success: false,
                 message: 'Lapangan & tanggal wajib dipilih'
@@ -169,9 +306,36 @@ const getJadwal = async (req, res) => {
                 booking: bookedSlots
             }
         });
-
     } catch (error) {
         res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+const getJadwalSemua = async (req, res) => {
+    try {
+        const info = getDateInfo(req.query.tanggal);
+
+        if (!info) {
+            return res.status(400).json({
+                success: false,
+                message: 'Format tanggal harus YYYY-MM-DD'
+            });
+        }
+
+        const data = await Booking.find({
+            tanggal: info.date,
+            status: { $ne: 'Dibatalkan' }
+        }).select('lapangan_id jam_mulai jam_selesai status');
+
+        res.status(200).json({
+            success: true,
+            data
+        });
+    } catch (error) {
+        res.status(500).json({
             success: false,
             message: error.message
         });
@@ -181,12 +345,14 @@ const getJadwal = async (req, res) => {
 const createBooking = async (req, res) => {
     try {
         const {
-            user_id,
             lapangan_id,
             tanggal,
             jam_mulai,
             jam_selesai,
-            pakai_lampu
+            pakai_lampu,
+            nama_penyewa,
+            no_hp_penyewa,
+            catatan
         } = req.body;
 
         if (
@@ -202,30 +368,42 @@ const createBooking = async (req, res) => {
             });
         }
 
-        let targetUserId = req.user.id;
+        let userId = null;
+        let dibuatOleh = null;
+        let tipe = 'Online';
+        let namaPenyewa = '';
+        let noHpPenyewa = '';
 
         if (req.user.role === 'petugas') {
-            if (!user_id) {
+            namaPenyewa = String(nama_penyewa || '').trim();
+            noHpPenyewa = String(no_hp_penyewa || '').trim();
+
+            if (!namaPenyewa || !noHpPenyewa) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Pilih penyewa terlebih dahulu'
+                    message: 'Nama dan nomor telepon penyewa wajib diisi'
                 });
             }
 
-            targetUserId = user_id;
-        } else if (req.user.role !== 'penyewa') {
+            tipe = 'Walk-in';
+            dibuatOleh = req.user.id;
+        } else if (req.user.role === 'penyewa') {
+            const akun = await User.findById(req.user.id);
+
+            if (!akun || akun.role !== 'penyewa') {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Data penyewa tidak ditemukan'
+                });
+            }
+
+            userId = akun._id;
+            namaPenyewa = akun.nama;
+            noHpPenyewa = akun.no_hp;
+        } else {
             return res.status(403).json({
                 success: false,
                 message: 'Role tidak diizinkan membuat booking'
-            });
-        }
-
-        const penyewa = await User.findById(targetUserId);
-
-        if (!penyewa || penyewa.role !== 'penyewa') {
-            return res.status(404).json({
-                success: false,
-                message: 'Data penyewa tidak ditemukan'
             });
         }
 
@@ -316,29 +494,48 @@ const createBooking = async (req, res) => {
             ? 'Weekend'
             : 'Weekday';
 
-        const tarif = await Tarif.findOne({
+        const tarifDasar = await Tarif.findOne({
             lapangan_id,
             tipe_hari: tipeHari,
-            pakai_lampu
+            pakai_lampu: false
         });
 
-        if (!tarif) {
-            return res.status(404).json({
-                success: false,
-                message: 'Tarif untuk pilihan tersebut belum tersedia'
+        const hargaDasar = tarifDasar?.harga_per_jam
+            ?? (tipeHari === 'Weekend' ? 75000 : 55000);
+
+        let biayaLampu = 0;
+        if (pakai_lampu) {
+            const tarifLampu = await Tarif.findOne({
+                lapangan_id,
+                tipe_hari: tipeHari,
+                pakai_lampu: true
             });
+
+            // Tarif lampu tersimpan sebagai tarif per jam lama; selisihnya
+            // dipakai sebagai biaya lampu satu kali per booking.
+            biayaLampu = Math.max(
+                0,
+                (tarifLampu?.harga_per_jam ?? hargaDasar + 15000) - hargaDasar
+            );
         }
 
-        const totalBiaya = tarif.harga_per_jam * durasi;
+        const totalBiaya = (hargaDasar * durasi) + biayaLampu;
 
         const booking = await Booking.create({
-            user_id: targetUserId,
+            user_id: userId,
+            dibuat_oleh: dibuatOleh,
+            tipe,
+            nama_penyewa: namaPenyewa,
+            no_hp_penyewa: noHpPenyewa,
+            catatan: String(catatan || '').trim().slice(0, 300),
             lapangan_id,
             tanggal: info.date,
             jam_mulai,
             jam_selesai,
             durasi_jam: durasi,
             total_biaya: totalBiaya,
+            biaya_lampu: biayaLampu,
+            harga_dasar_per_jam: hargaDasar,
             pakai_lampu,
             status: 'Menunggu'
         });
@@ -386,8 +583,8 @@ const updateBookingStatus = async (req, res) => {
 
         if (req.user.role !== 'petugas') {
             return res.status(403).json({
-                success: false, 
-                message: 'Hanya petugas yang dapat menguba status booking'
+                success: false,
+                message: 'Hanya petugas yang dapat mengubah status booking'
             });
         }
 
@@ -411,7 +608,7 @@ const updateBookingStatus = async (req, res) => {
         const aksi = status === 'Dikonfirmasi'
             ? 'Konfirmasi Pembayaran'
             : 'Selesaikan Booking';
-        
+
         await createLog(req.user.id, aksi, booking._id);
 
         res.status(200).json({
@@ -419,7 +616,6 @@ const updateBookingStatus = async (req, res) => {
             message: 'Status booking berhasil diperbarui',
             data: booking
         });
-
     } catch (error) {
         res.status(400).json({
             success: false,
@@ -439,7 +635,8 @@ const cancelBooking = async (req, res) => {
             });
         }
 
-        const isOwner = String(booking.user_id) === String(req.user.id);
+        const isOwner = Boolean(booking.user_id) &&
+            String(booking.user_id) === String(req.user.id);
 
         const isPetugas = req.user.role === 'petugas';
 
@@ -477,52 +674,16 @@ const cancelBooking = async (req, res) => {
             message: error.message
         });
     }
-}
-
-const deleteLapangan = async (req, res) => {
-    try {
-        const bookingExists = await Booking.exists({
-            lapangan_id: req.params.id,
-            status: { $ne: 'Dibatalkan' }
-        });
-
-        if (bookingExists) {
-            return res.status(400).json({
-                success: false,
-                message: 'Lapangan memiliki riwayat booking. Nonaktifkan saja'
-            });
-        }
-
-        await Tarif.deleteMany({
-            lapangan_id: req.params.id
-        }); 
-
-        const data = await Lapangan.findByIdAndDelete(req.paras.id);
-
-        if (!data) {
-            return res.status(400).json({
-                success: true,
-                message: 'Lapangan tidak ditemukan'
-            });
-        }
-        
-        res.status(200).json({
-            success: true,
-            message: 'Lapangan berhasil dihapus'
-        });
-    } catch (error) {
-        return res.status(400).json({
-            success: false,
-            message: error.message
-        });
-    }
 };
 
 module.exports = {
     getBookings,
     getBookingById,
     getJadwal,
+    getJadwalSemua,
     createBooking,
     updateBookingStatus,
-    cancelBooking
+    cancelBooking,
+    getPendapatan,
+    getPendapatanRingkasan
 };

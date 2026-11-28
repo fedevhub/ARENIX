@@ -1,4 +1,9 @@
-import api from '@/lib/api';
+import api from "@/lib/api";
 
-export const getDashboardData = () => api.get('/dashboard/data')
-export const getRiwayatAktivitas = () => api.get('/dashboard/auditLog')
+export const getDashboardData = () => {
+  return api.get("/dashboard/data");
+};
+
+export const getRiwayatAktivitas = () => {
+  return api.get("/dashboard/auditLog");
+};

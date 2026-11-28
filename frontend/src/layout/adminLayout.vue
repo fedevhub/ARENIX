@@ -7,7 +7,7 @@
         <adminSidebar />
 
         <main
-            class="ml-58 h-screen overflow-y-auto bg-[#f5f5f5]"
+            class="h-screen overflow-x-hidden overflow-y-auto bg-[#f5f5f5] pt-16 lg:ml-58 lg:pt-0"
         >
         <RouterView />
         </main>

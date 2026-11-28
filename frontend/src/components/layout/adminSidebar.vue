@@ -1,6 +1,7 @@
 <script setup>
+import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { LogOut, User } from 'lucide-vue-next'
+import { LogOut, Menu, User, X } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -27,6 +28,7 @@ function getUser() {
 const user = getUser()
 const roleLabel = user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Admin'
 const displayName = user.nama || user.username || '-'
+const mobileTerbuka = ref(false)
 
 const isActive = (to) => route.path === to || route.path.startsWith(to + '/')
 
@@ -36,11 +38,30 @@ function logout() {
     localStorage.removeItem('user')
     router.push('/login')
 }
+
+function tutupMenu() {
+    mobileTerbuka.value = false
+}
 </script>
 
 <template>
+    <button type="button" aria-label="Buka menu admin"
+        class="fixed left-4 top-3 z-40 flex size-10 items-center justify-center rounded-xl bg-[#142B4D] text-white shadow-lg lg:hidden"
+        @click="mobileTerbuka = true">
+        <Menu class="size-5" />
+    </button>
+
+    <button v-if="mobileTerbuka" type="button" aria-label="Tutup menu"
+        class="fixed inset-0 z-40 bg-slate-950/40 lg:hidden" @click="tutupMenu" />
+
     <!-- Lebar w-58 (232px) = sama dengan ml-58 di adminLayout.vue -->
-    <aside class="fixed inset-y-0 left-0 z-30 flex w-58 flex-col bg-[#142B4D]">
+    <aside class="fixed inset-y-0 left-0 z-50 flex w-58 -translate-x-full flex-col bg-[#142B4D] transition-transform duration-200 lg:translate-x-0"
+        :class="mobileTerbuka ? 'translate-x-0' : ''">
+        <button type="button" aria-label="Tutup menu admin"
+            class="absolute right-3 top-3 flex size-9 items-center justify-center rounded-lg text-white/80 hover:bg-white/10 lg:hidden"
+            @click="tutupMenu">
+            <X class="size-5" />
+        </button>
         <!-- Brand -->
         <div class="h-20 shrink-0 px-6 pt-5">
             <h1 class="text-2xl font-extrabold leading-none text-white">ARENIX</h1>
@@ -56,7 +77,7 @@ function logout() {
                 :aria-current="isActive(menu.to) ? 'page' : undefined"
                 class="relative ml-0.5 flex h-10 items-center rounded-lg pl-4 text-[13px] transition-colors" :class="isActive(menu.to)
                     ? 'bg-[#24466F] font-semibold text-white'
-                    : 'font-normal text-[#C1D0E2] hover:bg-white/5 hover:text-white'">
+                    : 'font-normal text-[#C1D0E2] hover:bg-white/5 hover:text-white'" @click="tutupMenu">
                 <span v-if="isActive(menu.to)"
                     class="absolute -left-0.5 top-0 h-full w-[3px] rounded-full bg-[#FF9638]" />
                 {{ menu.label }}

@@ -13,6 +13,8 @@ const jenisRoutes = require('./routes/jenisRoutes');
 const lapanganRoutes = require('./routes/lapanganRoutes');
 const tarifRoutes = require('./routes/tarifRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
+const auditLogRoutes = require("./routes/auditLogRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
 
 const app = express();
 
@@ -33,11 +35,13 @@ app.get('/', (req, res) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/jenis', jenisRoutes);
 app.use('/api/lapangan', lapanganRoutes);
 app.use('/api/tarif', tarifRoutes);
 app.use('/api/booking', bookingRoutes);
+app.use("/api/audit-log", auditLogRoutes);
 
 // Error 404
 app.use((req, res) => {

@@ -1,12 +1,15 @@
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Eye, EyeOff } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import api from '@/lib/api'
 
 const router = useRouter()
+const route = useRoute()
+
+const queryRedirect = route.query.redirect ? { redirect: route.query.redirect } : {}
 const nama = ref('')
 const username = ref('')
 const password = ref('')
@@ -42,7 +45,7 @@ async function handleRegister() {
             password: password.value,
             no_hp: no_hp.value.trim(),
         })
-        await router.push('/login')
+        await router.push({ path: '/login', query: queryRedirect })
     } catch (err) {
         error.value = err.response?.data?.message || 'Pendaftaran gagal. Coba lagi.'
     } finally {
@@ -100,7 +103,8 @@ async function handleRegister() {
 
         <p class="text-center text-xs text-white/60">
             Sudah Punya Akun?
-            <RouterLink to="/login" class="font-medium text-white hover:underline">Masuk</RouterLink>
+            <RouterLink :to="{ path: '/login', query: queryRedirect }" class="font-medium text-white hover:underline">
+                Masuk</RouterLink>
         </p>
     </form>
 </template>

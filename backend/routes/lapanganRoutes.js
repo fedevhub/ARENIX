@@ -13,10 +13,10 @@ const upload = require("../middleware/uploadLapangan");
 const authMiddleware = require("../middleware/authMiddleware");
 const authorizeRole = require("../middleware/authorizeRole");
 
-router.use(authMiddleware);
-
 router.get("/", getLapangan);
 router.get("/:id", getLapanganById);
+
+router.use(authMiddleware);
 
 router.post(
   "/",

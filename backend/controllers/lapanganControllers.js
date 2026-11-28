@@ -24,8 +24,10 @@ const getLapangan = async (req, res) => {
 
 const getLapanganById = async (req, res) => {
     try {
-        const data = await Jenis.findById(req.params.id)
-            .populate('jenis_id', 'nama');
+        const data = await Lapangan.findById(req.params.id).populate(
+            "jenis_id",
+            "nama",
+        );
 
         if (!data) {
             return res.status(404).json({

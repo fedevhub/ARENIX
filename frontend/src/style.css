@@ -1,5 +1,6 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -136,4 +137,55 @@
   display: none;
   width: 0;
   height: 0;
+}
+
+/* Hilangkan scrollbar utama browser */
+html {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+html::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+body {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Sembunyikan semua scrollbar tanpa mematikan scroll */
+html,
+body,
+#app {
+  width: 100%;
+  min-height: 100%;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+#app::-webkit-scrollbar,
+#app *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+/* Elemen yang menggunakan overflow tetap bisa di-scroll */
+html,
+body,
+#app,
+#app * {
+  scrollbar-width: none !important;
 }
